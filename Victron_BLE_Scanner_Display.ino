@@ -32,10 +32,13 @@
 
 #include <aes/esp_aes.h>  // AES decryption
 
-// Uncomment only one.
+// Board selection is now handled by PlatformIO (platformio.ini)
+// Select environment from VS Code bottom bar:
+//   - m5stick-c      → M5StickC base
+//   - m5stick-c-plus → M5StickC Plus
 ///////////////////////////////////
-//#define M5STICKC
-#define M5STICKCPLUS
+// #define M5STICKC
+// #define M5STICKCPLUS
 ///////////////////////////////////
 
 #if defined M5STICKC
@@ -141,10 +144,8 @@ struct solarController {
 
 
 
-struct solarController solarControllers[3] = {
-  { .charMacAddr = "f4116784732a", .charKey = "dc73cb155351cf950f9f3a958b5cd96f", .comment = "Spare" },
-  { .charMacAddr = "f944913298e8", .charKey = "40ef2093aa678238147091c7657daa54", .comment = "Gazebo" },
-  { .charMacAddr = "cc5b284e8ae6", .charKey = "2b6d51d4a74c3b83749303d87fa17bd9", .comment = "Shack" }
+struct solarController solarControllers[1] = {
+  { .charMacAddr = "c15639b47db5", .charKey = "f2dcc3ba40edb8de7e07d7638f13f971", .comment = "Tomita" }
 };
 
 
