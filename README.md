@@ -1,25 +1,89 @@
-# Victron_BLE_Scanner_Display
- 
-Code to display data from a Victron SmartSolar device. This is written
-for the M5StickCPlus (preferred) or M5Stack M5StickC (similar, but older with
-a smaller display).
+# Victron BLE Multi-Device Scanner Display
 
-This software builds on the stripped-down Victron BLE Advertising example found at:
+Display data from multiple Victron devices on M5StickC Plus via BLE.
 
-   https://github.com/hoberman/Victron_BLE_Advertising_example
+## Fork Information
 
-If you haven't already managed to receive and decode the advertising data from a Victron SmartSolar charger, you should start with that much-simpler code and make sure you can get it to work.
+This project is a fork of the original work by [@hoberman](https://github.com/hoberman):
+- **Original Repository**: [https://github.com/hoberman/Victron_BLE_Scanner_Display](https://github.com/hoberman/Victron_BLE_Scanner_Display)
 
-This program extends the original example code in several ways. First, it can be configured with the AES keys for multiple SmartSolar devices and can receive, decrypt, and decode the advertising data from each of them. When used on a board with integrated graphics hardware, the software will automatically display the SmartSolar data from the one with the strongest signal. If the graphics hardware isn't enabled, then data from all configured SmartSolar devices is sent to the Serial interface as it is received.
+The fork was created to extend functionality for multi-device monitoring of a complete Victron solar system.
 
-Finally, to make decryption data easier to enter, this code allows you to simply paste each device's MAC address and AES key into quoted character array strings. A function called during setup() uses the character array data to construct the byte array entries needed by the decryption code.
+## What's New in This Fork
 
-Notes:
+### Multi-Device Support
+The original code only supported SmartSolar MPPT devices. This fork adds support for:
+- **SmartSolar MPPT** - Solar charger with voltage, current, power, yield, and charge state
+- **Smart Battery Sense** - Battery temperature sensor
+- **Smart Shunt** - Battery monitor with SOC, current, voltage, and time-to-go
 
-I'm new to Github, so don't be surprised if you see wonky things going on here while I play with it.
+### Migration to PlatformIO
+The project has been migrated from Arduino IDE to **PlatformIO** for better dependency management and build system:
+- Moved source code from `.ino` files to `src/main.cpp`
+- Added `platformio.ini` configuration for M5StickC Plus
+- Automatic library management (M5StickCPlus, ESP32 BLE Arduino)
+- Consistent build environment across different systems
 
-I'm a hobbyist, not an experienced software developer, so be kind where I've made mistakes or done things in a weird way.
+### Display Pages
+Two display pages accessible via button press:
+1. **SOLAR Page** - Shows SmartSolar data: voltage, current, power (W), daily yield (Wh), charge state
+2. **INFO Page** - Shows Battery Sense temperature and Smart Shunt data (SOC, current, TTG)
 
-Yes, I've included my Victrons' encryption keys in my source code. I understand that's a bad practice, but in this case I'm willing to accept the risk that you might drive by and be able to decode my SmartSolar data. Oh, the horror!
+### Code Improvements
+- Restructured data processing with separate handlers for each device type
+- Added proper Victron BLE protocol parsing for Battery Monitor format (record type 0x02)
+- Temperature conversion from Kelvin to Celsius for Battery Sense
+- Bit-packed data extraction for Smart Shunt fields
+- Cleaner device configuration structure
 
-Be aware that Espressif appears to be changing the types of some of the BLE Advertising methods we use from std::string to String. You'll need to check your build system's BLEAdvertisedDevice.h file and comment/uncomment the USE_String #define accordingly.
+## Hardware Requirements
+
+- **M5StickC Plus** (recommended) or M5StickC
+- Victron devices with BLE Instant Readout enabled:
+  - SmartSolar MPPT
+  - Smart Battery Sense (optional)
+  - Smart Shunt (optional)
+
+## Configuration
+
+Edit the device configuration in `src/main.cpp`:
+
+```cpp
+struct victronDevice victronDevices[] = {
+  // SmartSolar MPPT
+  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "SmartSolar", DEVICE_SOLAR_CHARGER, {0}, {0}, "(unknown)" },
+  
+  // Smart Shunt
+  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "SmartShunt", DEVICE_SMART_SHUNT, {0}, {0}, "(unknown)" },
+  
+  // Battery Smart Sense
+  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "BattSense", DEVICE_BATTERY_SENSE, {0}, {0}, "(unknown)" },
+};
+```
+
+Get MAC address and Encryption Key from VictronConnect app:
+**Device Menu → Settings → Product Info → Bluetooth Instant Readout**
+
+## Building with PlatformIO
+
+1. Install [PlatformIO](https://platformio.org/)
+2. Clone this repository
+3. Open in VS Code with PlatformIO extension
+4. Edit device configuration with your MAC/Keys
+5. Build: `Ctrl+Alt+B`
+6. Upload: `Ctrl+Alt+U`
+
+## Usage
+
+- **Button A (front)**: Change display page (SOLAR ↔ INFO)
+- **Button B (side)**: Rotate display
+
+## Credits
+
+- Original project by [@hoberman](https://github.com/hoberman)
+- Victron BLE protocol documentation from [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble)
+- M5StickCPlus library by [M5Stack](https://github.com/m5stack)
+
+## License
+
+This project maintains the same license as the original repository.
