@@ -2,6 +2,8 @@
 
 Display data from multiple Victron devices on M5StickC Plus via BLE.
 
+![Display](images/display.jpg)
+
 ## Fork Information
 
 This project is a fork of the original work by [@hoberman](https://github.com/hoberman):
