@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"editor.tabSize": 4,
+		"editor.insertSpaces": true,
+		"files.associations": {
+			"*.h": "cpp",
+			"*.cpp": "cpp"
+		},
+		"C_Cpp.default.configurationProvider": "platformio.platformio-ide"
+	},
+	"extensions": {
+		"recommendations": [
+			"platformio.platformio-ide",
+			"ms-vscode.cpptools"
+		]
+	}
+}

@@ -1,91 +1,126 @@
-# Victron BLE Multi-Device Scanner Display
+# Victron BLE Gateway
 
-Display data from multiple Victron devices on M5StickC Plus via BLE.
+ESP32-based gateway that reads BLE advertisements from Victron Energy devices and publishes data via MQTT. Built for the **M5StickC** (first generation).
 
-![Display](images/display.jpg)
+## Features
 
-## Fork Information
+- **Passive BLE scanning** of up to 3 Victron devices simultaneously:
+  - SmartSolar MPPT (solar charger)
+  - SmartShunt (battery monitor)
+  - SmartBatterySense (temperature sensor)
+- **AES-128-CTR decryption** of Victron Instant Readout data
+- **MQTT publishing** with JSON payloads, compatible with Home Assistant and Node-RED
+- **Web-based configuration portal** (no need to recompile for WiFi/MQTT/device changes)
+- **Compact power display**: solar, battery, and consumption in Watts
 
-This project is a fork of the original work by [@hoberman](https://github.com/hoberman):
-- **Original Repository**: [https://github.com/hoberman/Victron_BLE_Scanner_Display](https://github.com/hoberman/Victron_BLE_Scanner_Display)
+## Hardware
 
-The fork was created to extend functionality for multi-device monitoring of a complete Victron solar system.
+| Component | Spec |
+|---|---|
+| Board | M5StickC (ESP32-PICO-D4) |
+| CPU | 240 MHz dual-core |
+| SRAM | 520 KB (no PSRAM) |
+| Flash | 4 MB |
+| Display | ST7735S 80x160 |
+| BLE | v4.2 (sufficient for Victron advertisements) |
+| WiFi | 802.11 b/g/n 2.4 GHz |
 
-## What's New in This Fork
+Also builds for M5StickC Plus (`m5stick-c-plus` environment).
 
-### Multi-Device Support
-The original code only supported SmartSolar MPPT devices. This fork adds support for:
-- **SmartSolar MPPT** - Solar charger with voltage, current, power, yield, and charge state
-- **Smart Battery Sense** - Battery temperature sensor
-- **Smart Shunt** - Battery monitor with SOC, current, voltage, and time-to-go
+## Quick Start
 
-### Migration to PlatformIO
-The project has been migrated from Arduino IDE to **PlatformIO** for better dependency management and build system:
-- Moved source code from `.ino` files to `src/main.cpp`
-- Added `platformio.ini` configuration for M5StickC Plus
-- Automatic library management (M5StickCPlus, ESP32 BLE Arduino)
-- Consistent build environment across different systems
+### 1. Build and Flash
 
-### Display Pages
-Two display pages accessible via button press:
-1. **SOLAR Page** - Shows SmartSolar data: voltage, current, power (W), daily yield (Wh), charge state
-2. **INFO Page** - Shows Battery Sense temperature and Smart Shunt data (SOC, current, TTG)
+Requires [PlatformIO](https://platformio.org/).
 
-### Code Improvements
-- Restructured data processing with separate handlers for each device type
-- Added proper Victron BLE protocol parsing for Battery Monitor format (record type 0x02)
-- Temperature conversion from Kelvin to Celsius for Battery Sense
-- Bit-packed data extraction for Smart Shunt fields
-- Cleaner device configuration structure
+```bash
+# Clone
+git clone https://github.com/AldebaranPrimo/Victron_BLE_Gateway.git
+cd Victron_BLE_Gateway
 
-## Hardware Requirements
+# Build for M5StickC
+pio run -e m5stick-c
 
-- **M5StickC Plus** (recommended) or M5StickC
-- Victron devices with BLE Instant Readout enabled:
-  - SmartSolar MPPT
-  - Smart Battery Sense (optional)
-  - Smart Shunt (optional)
-
-## Configuration
-
-Edit the device configuration in `src/main.cpp`:
-
-```cpp
-struct victronDevice victronDevices[] = {
-  // SmartSolar MPPT
-  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "SmartSolar", DEVICE_SOLAR_CHARGER, {0}, {0}, "(unknown)" },
-  
-  // Smart Shunt
-  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "SmartShunt", DEVICE_SMART_SHUNT, {0}, {0}, "(unknown)" },
-  
-  // Battery Smart Sense
-  { "YOUR_MAC_HERE", "YOUR_KEY_HERE", "BattSense", DEVICE_BATTERY_SENSE, {0}, {0}, "(unknown)" },
-};
+# Upload
+pio run -e m5stick-c -t upload
 ```
 
-Get MAC address and Encryption Key from VictronConnect app:
-**Device Menu → Settings → Product Info → Bluetooth Instant Readout**
+Or open in VS Code with the PlatformIO extension (workspace file included).
 
-## Building with PlatformIO
+### 2. Configure
 
-1. Install [PlatformIO](https://platformio.org/)
-2. Clone this repository
-3. Open in VS Code with PlatformIO extension
-4. Edit device configuration with your MAC/Keys
-5. Build: `Ctrl+Alt+B`
-6. Upload: `Ctrl+Alt+U`
+On first boot, the device automatically enters **Setup Mode**:
 
-## Usage
+1. Connect to WiFi **`VictronBLE-Setup`** (open, no password)
+2. A configuration page opens at `http://192.168.4.1`
+3. Enter your WiFi credentials, MQTT broker, and Victron device details
+4. Click **Save** - the device reboots and starts operating
 
-- **Button A (front)**: Change display page (SOLAR ↔ INFO)
-- **Button B (side)**: Rotate display
+To re-enter setup mode later, hold **Button B** (side) for 3 seconds during boot.
+
+### 3. Get Victron Device Keys
+
+For each Victron device, open **VictronConnect**:
+
+Settings > Product Info > enable "Instant readout via Bluetooth" > tap SHOW
+
+Note the **Encryption Key** (32 hex chars) and **MAC address** (enter without colons).
+
+**Requirements**: Victron firmware v3.61+, Instant Readout enabled.
+
+## MQTT Topics
+
+Default base topic: `victron`
+
+| Topic | Data |
+|---|---|
+| `victron/mppt/state` | Solar charger: voltage, current, PV power, yield, charge state |
+| `victron/smartshunt/state` | Battery monitor: SOC, voltage, current, time-to-go |
+| `victron/battery_sense/state` | Battery sensor: voltage, temperature |
+| `victron/gateway/status` | Gateway health: uptime, free heap, WiFi RSSI |
+
+See [docs/mqtt-topics.md](docs/mqtt-topics.md) for full payload details and Home Assistant examples.
+
+## Display
+
+In normal operation, the display shows 3 rows:
+
+| Label | Color | Value |
+|---|---|---|
+| PV | Cyan | Solar input power (W) |
+| BT | Green/Red | Battery power (W), green=charge, red=discharge |
+| LD | Yellow | Consumption (W) |
+
+Status indicator (top-right dot): green = all connected, yellow = WiFi only, red = disconnected.
+
+## Documentation
+
+- [Configuration Guide](docs/configuration-guide.md) - Setup instructions and device key retrieval
+- [MQTT Topics](docs/mqtt-topics.md) - Topic structure, JSON payloads, Home Assistant integration
+- [Architecture](docs/architecture.md) - System design, boot flow, memory budget, module structure
+
+## Project Structure
+
+```
+src/
+  main.cpp              # Boot flow, mode selection, main loop
+  config_manager.h/cpp  # NVS-based configuration storage
+  config_portal.h/cpp   # WiFi AP + captive portal web server
+  config_html.h         # Configuration page HTML (PROGMEM)
+  wifi_manager.h/cpp    # WiFi STA connection management
+  mqtt_publisher.h/cpp  # MQTT JSON publishing
+  victron_ble.h/cpp     # BLE scanning, AES decryption, data parsing
+  display_ui.h/cpp      # Display rendering
+docs/                   # Documentation
+platformio.ini          # PlatformIO configuration
+partitions_noota.csv    # Custom partition table (3MB app, no OTA)
+```
 
 ## Credits
 
-- Original project by [@hoberman](https://github.com/hoberman)
-- Victron BLE protocol documentation from [keshavdv/victron-ble](https://github.com/keshavdv/victron-ble)
-- M5StickCPlus library by [M5Stack](https://github.com/m5stack)
+- BLE parsing based on [AldebaranPrimo/Victron_BLE_Scanner_Display](https://github.com/AldebaranPrimo/Victron_BLE_Scanner_Display) and [hoberman/Victron_BLE_Scanner_Display](https://github.com/hoberman/Victron_BLE_Scanner_Display)
+- Victron BLE protocol reference: [Fabian-Schmidt/esphome-victron_ble](https://github.com/Fabian-Schmidt/esphome-victron_ble)
 
 ## License
 
-This project maintains the same license as the original repository.
+MIT

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cd:*)"
+      "Bash(*)",
+      "Write(*)",
+      "Read(*)",
+      "Bash(cd:*)",
+      "Bash(where:*)"
     ]
   }
 }
