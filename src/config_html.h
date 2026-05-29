@@ -2,7 +2,12 @@
 #define CONFIG_HTML_H
 
 // HTML page for configuration portal
-// Uses %PLACEHOLDER% markers for template substitution
+// Uses %PLACEHOLDER% markers for template substitution.
+//
+// Device rows are NOT hard-coded here: the static template carries a single
+// %DEVICE_ROWS% placeholder, and config_portal.cpp::buildDeviceRow() emits one
+// <details> block per slot (count follows MAX_DEVICES). This keeps a single
+// source of truth for the device count and avoids N-fold HTML copy-paste.
 static const char CONFIG_PAGE[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -63,58 +68,9 @@ button:hover{background:#00b894}
 </div>
 
 <h2>Dispositivi Victron</h2>
+<div class="info">Il <b>Nome</b> di ogni dispositivo diventa il segmento del topic MQTT: <code>victron/&lt;nome&gt;/state</code>. Per il primo MPPT lascia <code>mppt</code> (retrocompatibilita). / The device <b>Name</b> is the MQTT topic segment.</div>
 
-<details open>
-<summary>Dispositivo 1</summary>
-<div class="chk"><input type="checkbox" name="dev0_en" value="1" %DEV0_EN%><label>Abilitato</label></div>
-<label>Nome</label>
-<input name="dev0_name" value="%DEV0_NAME%" maxlength="15" placeholder="es. SmartSolar">
-<label>Tipo</label>
-<select name="dev0_type">
-<option value="0" %DEV0_T0%>SmartSolar MPPT</option>
-<option value="1" %DEV0_T1%>SmartShunt</option>
-<option value="2" %DEV0_T2%>SmartBatterySense</option>
-</select>
-<label>MAC Address (12 hex, senza ":")</label>
-<input name="dev0_mac" value="%DEV0_MAC%" maxlength="12" pattern="[0-9a-fA-F]{12}" placeholder="es. c15639b47db5">
-<div class="info">Trovi MAC e chiave in VictronConnect > Impostazioni > Info prodotto > Instant Readout</div>
-<label>Encryption Key (32 hex)</label>
-<input name="dev0_key" value="%DEV0_KEY%" maxlength="32" pattern="[0-9a-fA-F]{32}">
-</details>
-
-<details>
-<summary>Dispositivo 2</summary>
-<div class="chk"><input type="checkbox" name="dev1_en" value="1" %DEV1_EN%><label>Abilitato</label></div>
-<label>Nome</label>
-<input name="dev1_name" value="%DEV1_NAME%" maxlength="15" placeholder="es. SmartShunt">
-<label>Tipo</label>
-<select name="dev1_type">
-<option value="0" %DEV1_T0%>SmartSolar MPPT</option>
-<option value="1" %DEV1_T1%>SmartShunt</option>
-<option value="2" %DEV1_T2%>SmartBatterySense</option>
-</select>
-<label>MAC Address (12 hex, senza ":")</label>
-<input name="dev1_mac" value="%DEV1_MAC%" maxlength="12" pattern="[0-9a-fA-F]{12}">
-<label>Encryption Key (32 hex)</label>
-<input name="dev1_key" value="%DEV1_KEY%" maxlength="32" pattern="[0-9a-fA-F]{32}">
-</details>
-
-<details>
-<summary>Dispositivo 3</summary>
-<div class="chk"><input type="checkbox" name="dev2_en" value="1" %DEV2_EN%><label>Abilitato</label></div>
-<label>Nome</label>
-<input name="dev2_name" value="%DEV2_NAME%" maxlength="15" placeholder="es. BatterySense">
-<label>Tipo</label>
-<select name="dev2_type">
-<option value="0" %DEV2_T0%>SmartSolar MPPT</option>
-<option value="1" %DEV2_T1%>SmartShunt</option>
-<option value="2" %DEV2_T2%>SmartBatterySense</option>
-</select>
-<label>MAC Address (12 hex, senza ":")</label>
-<input name="dev2_mac" value="%DEV2_MAC%" maxlength="12" pattern="[0-9a-fA-F]{12}">
-<label>Encryption Key (32 hex)</label>
-<input name="dev2_key" value="%DEV2_KEY%" maxlength="32" pattern="[0-9a-fA-F]{32}">
-</details>
+%DEVICE_ROWS%
 
 <button type="submit">Salva e Riavvia</button>
 </form>

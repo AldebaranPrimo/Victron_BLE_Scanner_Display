@@ -1,3 +1,20 @@
+// ============================================================================
+// victron_ble.cpp — BLE scan, AES-CTR decrypt, per-slot record parsing
+//
+// N-device routing model:
+//   - rtDevices[] and devStates[] are BOTH parallel to GatewayConfig.devices[]:
+//     index i in all three refers to the same configured slot. There is NO
+//     compaction — disabled slots are simply skipped (gated by `enabled`).
+//   - Each incoming advertisement is matched to a slot BY MAC (findDeviceByMac),
+//     never by type, so multiple devices of the same type stay distinct.
+//   - The matched slot index `devIdx` is the single source of truth used to
+//     write devStates[devIdx] and (later, in mqtt_publisher) to derive the
+//     topic from devStates[devIdx].name.
+//
+// The parsing math is kept byte-for-byte identical to the legacy single-device
+// code so the published JSON payloads remain unchanged (back-compat guarantee).
+// ============================================================================
+
 #include "victron_ble.h"
 #include <BLEDevice.h>
 #include <BLEScan.h>
@@ -7,16 +24,18 @@
 // ============================================================================
 // Global data
 // ============================================================================
-SolarDisplayData solarData = {};
-ShuntDisplayData shuntData = {};
-BatterySenseDisplayData batterySenseData = {};
+// Per-slot runtime state, indexed by config slot (see victron_ble.h).
+DeviceRuntimeState devStates[MAX_DEVICES] = {};
 volatile bool bleNewData = false;
 
 // ============================================================================
 // Runtime devices
+//
+// rtDevices is parallel to GatewayConfig.devices[] (NOT compacted): rtDevices[i]
+// is the runtime form of config slot i. Sparse — only `enabled` entries are
+// populated; the rest stay enabled=false.
 // ============================================================================
 static VictronRuntimeDevice rtDevices[MAX_DEVICES];
-static int rtDeviceCount = 0;
 static BLEScan* pBLEScan = nullptr;
 
 // ============================================================================
@@ -35,8 +54,10 @@ static void hexStrToBytes(const char* hex, byte* out, int outLen) {
     }
 }
 
+// Returns the config-slot index of the enabled device whose MAC matches, or -1.
+// Iterates the full slot range because slots are now sparse (not compacted).
 static int findDeviceByMac(byte* mac) {
-    for (int i = 0; i < rtDeviceCount; i++) {
+    for (int i = 0; i < MAX_DEVICES; i++) {
         if (!rtDevices[i].enabled) continue;
         bool match = true;
         for (int j = 0; j < 6; j++) {
@@ -74,75 +95,89 @@ static bool decryptData(victronManufacturerData* vicData, int devIdx, byte* out,
 // ============================================================================
 // Processors
 // ============================================================================
+// Parse a SmartSolar charger record into the matched slot's solar state.
+// Math is unchanged from the legacy single-device path; only the write target
+// moved from the `solarData` singleton to devStates[devIdx].data.solar.
 static void processSolarCharger(byte* data, int devIdx, int rssi, const char* devName) {
     victronSolarData* solar = (victronSolarData*)data;
 
     byte unusedBits = solar->outputCurrentHi & 0xfe;
     if (unusedBits != 0xfe) return;
 
-    solarData.valid = true;
-    solarData.batteryVoltage = float(solar->batteryVoltage) * 0.01f;
-    solarData.batteryCurrent = float(solar->batteryCurrent) * 0.1f;
-    solarData.todayYield = float(solar->todayYield) * 0.01f * 1000.0f;
-    solarData.inputPower = solar->inputPower;
-    solarData.chargeState = solar->deviceState;
-    solarData.errorCode = solar->errorCode;
-    solarData.rssi = rssi;
+    SolarDisplayData& s = devStates[devIdx].data.solar;
+    s.valid = true;
+    s.batteryVoltage = float(solar->batteryVoltage) * 0.01f;
+    s.batteryCurrent = float(solar->batteryCurrent) * 0.1f;
+    s.todayYield = float(solar->todayYield) * 0.01f * 1000.0f;
+    s.inputPower = solar->inputPower;
+    s.chargeState = solar->deviceState;
+    s.errorCode = solar->errorCode;
+    s.rssi = rssi;
 
     int outputCurrentInt = ((solar->outputCurrentHi & 0x01) << 9) | solar->outputCurrentLo;
-    solarData.loadCurrent = float(outputCurrentInt) * 0.1f;
+    s.loadCurrent = float(outputCurrentInt) * 0.1f;
 
-    strncpy(solarData.deviceName, devName, 31);
+    strncpy(s.deviceName, devName, 31);
+    devStates[devIdx].lastUpdateMs = millis();
 
-    Serial.printf("[SOLAR] %s | %.2fV %.1fA | %dW | Yield:%.0fWh | RSSI:%d\n",
-        devName, solarData.batteryVoltage, solarData.batteryCurrent,
-        solarData.inputPower, solarData.todayYield, rssi);
+    Serial.printf("[SOLAR slot%d] %s | %.2fV %.1fA | %dW | Yield:%.0fWh | RSSI:%d\n",
+        devIdx, devName, s.batteryVoltage, s.batteryCurrent,
+        s.inputPower, s.todayYield, rssi);
 }
 
+// Parse a SmartShunt battery-monitor record into the matched slot's shunt state.
+// NOTE: consumed_ah is not present in this BLE record; it is left at 0.0 from the
+// zero-initialized state, exactly as the legacy code did, to preserve byte-for-
+// byte payload back-compat.
 static void processSmartShunt(byte* data, int devIdx, int rssi, const char* devName) {
     victronBatteryMonitorData* mon = (victronBatteryMonitorData*)data;
 
-    shuntData.valid = true;
-    shuntData.batteryVoltage = float(mon->batteryVoltage) * 0.01f;
-    shuntData.ttg = mon->ttg;
-    shuntData.rssi = rssi;
+    ShuntDisplayData& s = devStates[devIdx].data.shunt;
+    s.valid = true;
+    s.batteryVoltage = float(mon->batteryVoltage) * 0.01f;
+    s.ttg = mon->ttg;
+    s.rssi = rssi;
 
     // Current: 22 bit signed, starts at bit 2 of packedData
     int32_t currentRaw = ((mon->packedData[0] >> 2) |
                           (mon->packedData[1] << 6) |
                           (mon->packedData[2] << 14)) & 0x3FFFFF;
     if (currentRaw & 0x200000) currentRaw |= 0xFFC00000;
-    shuntData.batteryCurrent = float(currentRaw) * 0.001f;
+    s.batteryCurrent = float(currentRaw) * 0.001f;
 
     // SOC: 10 bit
     uint16_t socRaw = ((mon->packedData[5] >> 4) | (mon->packedData[6] << 4)) & 0x3FF;
     if (socRaw != 0x3FF) {
-        shuntData.soc = float(socRaw) * 0.1f;
+        s.soc = float(socRaw) * 0.1f;
     }
 
-    strncpy(shuntData.deviceName, devName, 31);
+    strncpy(s.deviceName, devName, 31);
+    devStates[devIdx].lastUpdateMs = millis();
 
-    Serial.printf("[SHUNT] %s | %.2fV %.2fA | SOC:%.1f%% | TTG:%dmin | RSSI:%d\n",
-        devName, shuntData.batteryVoltage, shuntData.batteryCurrent,
-        shuntData.soc, shuntData.ttg, rssi);
+    Serial.printf("[SHUNT slot%d] %s | %.2fV %.2fA | SOC:%.1f%% | TTG:%dmin | RSSI:%d\n",
+        devIdx, devName, s.batteryVoltage, s.batteryCurrent,
+        s.soc, s.ttg, rssi);
 }
 
+// Parse a SmartBatterySense record into the matched slot's bsense state.
+// Same record layout as the shunt (battery monitor 0x02) but only voltage and
+// temperature are meaningful. Math unchanged from the legacy path.
 static void processBatterySense(byte* data, int devIdx, int rssi, const char* devName) {
     victronBatteryMonitorData* mon = (victronBatteryMonitorData*)data;
 
-    uint8_t auxInput = mon->packedData[0] & 0x03;
-
-    batterySenseData.valid = true;
-    batterySenseData.batteryVoltage = float(mon->batteryVoltage) * 0.01f;
-    batterySenseData.rssi = rssi;
+    BatterySenseDisplayData& s = devStates[devIdx].data.bsense;
+    s.valid = true;
+    s.batteryVoltage = float(mon->batteryVoltage) * 0.01f;
+    s.rssi = rssi;
 
     float tempKelvin = float(mon->auxValue) * 0.01f;
-    batterySenseData.temperature = tempKelvin - 273.15f;
+    s.temperature = tempKelvin - 273.15f;
 
-    strncpy(batterySenseData.deviceName, devName, 31);
+    strncpy(s.deviceName, devName, 31);
+    devStates[devIdx].lastUpdateMs = millis();
 
-    Serial.printf("[BSENSE] %s | %.2fV | Temp:%.1fC | RSSI:%d\n",
-        devName, batterySenseData.batteryVoltage, batterySenseData.temperature, rssi);
+    Serial.printf("[BSENSE slot%d] %s | %.2fV | Temp:%.1fC | RSSI:%d\n",
+        devIdx, devName, s.batteryVoltage, s.temperature, rssi);
 }
 
 // ============================================================================
@@ -153,10 +188,13 @@ class VictronBLECallback : public BLEAdvertisedDeviceCallbacks {
         if (!advertisedDevice.haveManufacturerData()) return;
 
         uint8_t buf[32];
-        std::string manData = advertisedDevice.getManufacturerData();
+        // arduino-esp32 3.x: getManufacturerData() returns an Arduino String
+        // (it returned std::string in 2.x). Copy by explicit length because the
+        // manufacturer data is binary and may contain embedded NUL bytes.
+        String manData = advertisedDevice.getManufacturerData();
         int dataSize = manData.length();
         if (dataSize > 31) dataSize = 31;
-        manData.copy((char*)buf, dataSize);
+        memcpy(buf, manData.c_str(), dataSize);
 
         victronManufacturerData* vicData = (victronManufacturerData*)buf;
         if (vicData->vendorID != 0x02E1) return;
@@ -224,29 +262,43 @@ class VictronBLECallback : public BLEAdvertisedDeviceCallbacks {
 // ============================================================================
 // Public API
 // ============================================================================
+// Initialize runtime devices + per-slot state from config, WITHOUT compaction:
+// slot i of rtDevices/devStates maps 1:1 to cfg.devices[i]. This keeps the
+// config index, runtime index, state index, and topic name all on the same
+// index, removing index-aliasing bugs and letting topics derive from the slot.
 void bleInit(const GatewayConfig& cfg) {
-    rtDeviceCount = 0;
+    int configured = 0;
 
     for (int i = 0; i < MAX_DEVICES; i++) {
-        if (!cfg.devices[i].enabled) continue;
-        if (strlen(cfg.devices[i].mac) != 12) continue;
-        if (strlen(cfg.devices[i].aesKey) != 32) continue;
+        devStates[i] = {};            // clear per-slot state
+        rtDevices[i].enabled = false; // default the slot to inactive
 
-        VictronRuntimeDevice& dev = rtDevices[rtDeviceCount];
+        const DeviceConfig& dc = cfg.devices[i];
+        if (!dc.enabled) continue;
+        if (strlen(dc.mac) != 12) continue;
+        if (strlen(dc.aesKey) != 32) continue;
+
+        VictronRuntimeDevice& dev = rtDevices[i]; // SAME index as config slot
         dev.enabled = true;
-        dev.type = cfg.devices[i].type;
-        strncpy(dev.name, cfg.devices[i].name, sizeof(dev.name) - 1);
-        hexStrToBytes(cfg.devices[i].mac, dev.macBytes, 6);
-        hexStrToBytes(cfg.devices[i].aesKey, dev.keyBytes, 16);
+        dev.type = dc.type;
+        strncpy(dev.name, dc.name, sizeof(dev.name) - 1);
+        hexStrToBytes(dc.mac, dev.macBytes, 6);
+        hexStrToBytes(dc.aesKey, dev.keyBytes, 16);
 
-        Serial.printf("[BLE] Device %d: %s type=%d MAC:", rtDeviceCount, dev.name, dev.type);
+        // Initialize the parallel runtime-state slot
+        devStates[i].inUse = true;
+        devStates[i].type = dc.type;
+        strncpy(devStates[i].name, dc.name, sizeof(devStates[i].name) - 1);
+        devStates[i].lastUpdateMs = 0;
+
+        Serial.printf("[BLE] Slot %d: %s type=%d MAC:", i, dev.name, dev.type);
         for (int j = 0; j < 6; j++) Serial.printf("%02x", dev.macBytes[j]);
         Serial.println();
 
-        rtDeviceCount++;
+        configured++;
     }
 
-    Serial.printf("[BLE] %d devices configured\n", rtDeviceCount);
+    Serial.printf("[BLE] %d devices configured\n", configured);
 
     BLEDevice::init("");
     pBLEScan = BLEDevice::getScan();
@@ -258,10 +310,27 @@ void bleInit(const GatewayConfig& cfg) {
 
 void bleScan() {
     if (!pBLEScan) return;
-    BLEScanResults foundDevices = pBLEScan->start(1, false);
+    // arduino-esp32 3.x: BLEScan::start() returns BLEScanResults* (it returned a
+    // value in 2.x). We don't use the aggregated result here — each advertisement
+    // is handled in the callback — so the return value is ignored.
+    pBLEScan->start(1, false);
     pBLEScan->clearResults();
 }
 
+// Number of active (enabled & configured) device slots.
 int bleDeviceCount() {
-    return rtDeviceCount;
+    int n = 0;
+    for (int i = 0; i < MAX_DEVICES; i++) if (rtDevices[i].enabled) n++;
+    return n;
+}
+
+// Fills outSlots with the indices of all in-use slots (in slot order) and
+// returns how many were written, capped at maxOut. Lets callers (e.g. the
+// display) iterate present devices without walking over disabled gaps.
+int bleEnabledSlots(int* outSlots, int maxOut) {
+    int n = 0;
+    for (int i = 0; i < MAX_DEVICES && n < maxOut; i++) {
+        if (devStates[i].inUse) outSlots[n++] = i;
+    }
+    return n;
 }

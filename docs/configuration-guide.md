@@ -2,7 +2,7 @@
 
 ## First-Time Setup
 
-1. **Flash the firmware** to your M5StickC via USB-C
+1. **Flash the firmware** to your M5StickC Plus via USB-C (`pio run -e m5stick-c-plus -t upload`)
 2. The device boots and shows: `"VictronBLE GW"` / `"Tieni B 3s = Setup"`
 3. Since no configuration exists, it automatically enters **Setup Mode**
 
@@ -30,12 +30,21 @@ When in setup mode, the M5StickC:
 - **Publish interval**: How often to publish data in seconds (default: `5`)
 - **Username/Password**: MQTT credentials (leave empty if not required)
 
-#### Victron Devices (up to 3)
+#### Victron Devices (up to 6)
 For each device:
 - **Enabled**: Check to activate monitoring
-- **Name**: Friendly name (e.g., "SmartSolar")
-- **Type**: Select device type (SmartSolar MPPT, SmartShunt, or SmartBatterySense)
-- **MAC Address**: 12 hex characters without colons (e.g., `c15639b47db5`)
+- **Name**: The device's MQTT topic segment. The data is published to
+  `victron/<name>/state`. Constraints: lowercase letters, digits and underscore
+  only (`[a-z0-9_]`, up to 15 chars). Anything else is stripped on save.
+  - **Back-compat:** leave the first SmartSolar MPPT named `mppt`, the SmartShunt
+    `smartshunt`, and the SmartBatterySense `battery_sense` to keep the exact
+    legacy topics. If you add a second/third MPPT and leave its name blank, it is
+    auto-named `mppt2`, `mppt3`, … Two enabled devices can never share a name —
+    the portal disambiguates duplicates automatically.
+- **Type**: Select device type (SmartSolar MPPT, SmartShunt, or SmartBatterySense).
+  The payload schema is chosen by **type**, independent of the name.
+- **MAC Address**: 12 hex characters without colons (e.g., `c15639b47db5`).
+  Routing is done by MAC, so several devices of the same type stay distinct.
 - **Encryption Key**: 32 hex characters
 
 4. Click **"Salva e Riavvia"**
@@ -69,17 +78,18 @@ To change configuration after initial setup:
 
 To completely clear the configuration, enter setup mode and submit an empty form, or re-flash the firmware.
 
-## Display in Normal Mode
+## Display in Normal Mode (M5StickC Plus, 135×240)
 
-The display shows 3 rows of power data:
+The display is **paged** and multi-device aware. **Button A** cycles through the
+pages:
 
-| Row | Color | Value | Source |
-|---|---|---|---|
-| **PV** | Cyan | Solar power (W) | MPPT `pv_power` |
-| **BT** | Green/Red | Battery power (W) | SmartShunt `voltage * current` |
-| **LD** | Yellow | Consumption (W) | `pv_power - battery_power` |
+| Page | Content |
+|---|---|
+| **0 — Summary** | Header `Victron GW` + one compact line per present device: name + key metric (MPPT → `<n>W`, SmartShunt → `SoC <n>%`, BatterySense → `<n>C`). Scales cleanly from 1 to 6 devices. |
+| **1..N — Detail** | One page per present device. Large header with the device **name** (so it is always clear which device is shown), then type-specific readouts: MPPT → PV power (large), V/I, yield, charge-state, RSSI; SmartShunt → SoC (large), V, signed current (green=charge/red=drain), TTG, RSSI; BatterySense → temperature (large), V, RSSI. |
 
-- **Green** battery = charging, **Red** = discharging
+- A small `page x/N` footer at the bottom makes paging discoverable.
+- A device whose data is stale (no update for >60 s, or never seen) is **dimmed**.
 - A small circle in the top-right corner indicates connection status:
   - Green = WiFi + MQTT connected
   - Yellow = WiFi connected, MQTT disconnected
@@ -87,5 +97,5 @@ The display shows 3 rows of power data:
 
 ## Buttons in Normal Mode
 
-- **Button A** (front): Change display page
+- **Button A** (front): Cycle display page (summary → device 1 → … → device N → summary)
 - **Button B** (side): Rotate display orientation

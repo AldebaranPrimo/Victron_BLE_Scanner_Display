@@ -21,6 +21,7 @@ static unsigned long lastPublish = 0;
 static unsigned long bootTime = 0;
 static int displayPage = 0;
 static int displayRotation = 3;
+static int lastPage = -1;     // tracks page changes for responsive redraw
 
 // Wait for Button B long press during a visible window.
 // Shows countdown on display. Returns true if button held for holdMs
@@ -66,7 +67,7 @@ void setup() {
     delay(500);
 
     Serial.println("\n========================================");
-    Serial.println("Victron BLE Gateway v1.0");
+    Serial.printf("Victron BLE Gateway v%s\n", FW_VERSION);
     Serial.println("========================================");
 
     // Init display
@@ -158,20 +159,28 @@ void loop() {
     if (mqttIsConnected() && (now - lastPublish >= intervalMs)) {
         lastPublish = now;
 
-        mqttPublishSolar(solarData);
-        mqttPublishShunt(shuntData);
-        mqttPublishBatterySense(batterySenseData);
+        // Publish every in-use slot to its own "<base>/<name>/state" topic.
+        // <=6 small retained messages per interval — trivial broker load.
+        for (int i = 0; i < MAX_DEVICES; i++) {
+            if (devStates[i].inUse) mqttPublishDevice(devStates[i]);
+        }
         mqttPublishGatewayStatus((now - bootTime) / 1000);
     }
 
-    // Update display
-    if (bleNewData) {
+    // Page count = 1 summary page + one detail page per present device.
+    int pageCount = 1 + bleDeviceCount();
+    if (displayPage >= pageCount) displayPage = 0; // clamp if device count shrank
+
+    // Redraw on new BLE data OR when the user paged with Button A (so paging
+    // feels responsive even with no fresh advertisement).
+    if (bleNewData || displayPage != lastPage) {
         bleNewData = false;
-        displayNormalUpdate(wifiIsConnected(), mqttIsConnected());
+        lastPage = displayPage;
+        displayNormalUpdate(wifiIsConnected(), mqttIsConnected(), displayPage);
     }
 
-    // Handle buttons
-    displayHandleButtons(displayPage, displayRotation);
+    // Handle buttons (Button A cycles pages over pageCount; B toggles rotation)
+    displayHandleButtons(displayPage, displayRotation, pageCount);
 
     // Periodic heap monitoring
     static unsigned long lastHeapLog = 0;

@@ -3,13 +3,38 @@
 ## Topic Structure
 
 All topics are published under a configurable base topic (default: `victron`).
+Each device publishes to a topic derived from its **name** (set in the web
+portal):
 
 ```
-{base}/mppt/state              → SmartSolar MPPT data
-{base}/smartshunt/state        → SmartShunt data
-{base}/battery_sense/state     → SmartBatterySense data
+{base}/{name}/state            → one device (schema depends on its type)
 {base}/gateway/status          → Gateway health/status
 ```
+
+The device `name` is the topic segment. Names are constrained to lowercase
+`[a-z0-9_]` (sanitized in the portal and validated by the form) so they are
+always valid MQTT topic segments.
+
+### Back-compat defaults
+
+To keep existing Home Assistant / Node-RED mappings working unchanged, the
+default names reproduce the legacy fixed topics exactly:
+
+| Device | Default name | Topic |
+|---|---|---|
+| First SmartSolar MPPT | `mppt` | `{base}/mppt/state` |
+| SmartShunt | `smartshunt` | `{base}/smartshunt/state` |
+| SmartBatterySense | `battery_sense` | `{base}/battery_sense/state` |
+
+Additional MPPTs get incrementing names automatically when left blank:
+
+```
+{base}/mppt2/state             → 2nd SmartSolar MPPT
+{base}/mppt3/state             → 3rd SmartSolar MPPT
+```
+
+You can override any name in the portal; the payload schema is still chosen by
+the device **type**, not its name.
 
 All messages are published as **retained** so that new subscribers immediately get the latest values.
 
@@ -33,8 +58,8 @@ All messages are published as **retained** so that new subscribers immediately g
 
 | Field | Unit | Description |
 |---|---|---|
-| `device_state` | enum | 0=off, 3=bulk, 4=absorption, 5=float, 7=equalize |
-| `device_state_text` | string | Human-readable state name |
+| `device_state` | enum | Charge state: 0=off, 1=low_power, 2=fault, 3=bulk, 4=absorption, 5=float, 6=storage, 7=equalize (values >7 emit `device_state_text:"unknown"`) |
+| `device_state_text` | string | Human-readable state name derived from `device_state` |
 | `charger_error` | enum | 0=no error |
 | `battery_voltage` | V | Battery voltage (0.01V resolution) |
 | `battery_current` | A | Charge current (0.1A resolution) |
@@ -97,6 +122,13 @@ mqtt:
   sensor:
     - name: "MPPT PV Power"
       state_topic: "victron/mppt/state"
+      value_template: "{{ value_json.pv_power }}"
+      unit_of_measurement: "W"
+      device_class: power
+
+    # Second MPPT — identical schema, different topic (name "mppt2")
+    - name: "MPPT2 PV Power"
+      state_topic: "victron/mppt2/state"
       value_template: "{{ value_json.pv_power }}"
       unit_of_measurement: "W"
       device_class: power

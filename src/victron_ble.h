@@ -85,6 +85,9 @@ struct BatterySenseDisplayData {
 
 // ============================================================================
 // Runtime device info (populated from config)
+//
+// Parallel to GatewayConfig.devices[]: rtDevices[i] corresponds to config slot
+// i. Holds the decoded MAC/key bytes used for BLE matching and AES decryption.
 // ============================================================================
 struct VictronRuntimeDevice {
     byte macBytes[6];
@@ -94,15 +97,41 @@ struct VictronRuntimeDevice {
     bool enabled;
 };
 
-// Global data (extern)
-extern SolarDisplayData solarData;
-extern ShuntDisplayData shuntData;
-extern BatterySenseDisplayData batterySenseData;
+// ============================================================================
+// Per-slot runtime state
+//
+// One DeviceRuntimeState per configured device slot, indexed by the SAME slot
+// index as GatewayConfig.devices[] and rtDevices[] (0..MAX_DEVICES-1). This is
+// the core of the N-device refactor: each slot owns its own parsed payload, so
+// two devices of the same type never collide. `type` selects which member of
+// the union is meaningful. `name` is copied from config and becomes the MQTT
+// topic segment. `lastUpdateMs` is the millis() of the last successful parse
+// (0 = never seen) and drives display staleness dimming.
+//
+// The union keeps RAM flat: 6 slots * (largest variant + header) stays well
+// under 0.5 KB.
+// ============================================================================
+struct DeviceRuntimeState {
+    bool      inUse;          // slot is enabled & configured
+    uint8_t   type;           // DEVICE_TYPE_SOLAR / _SHUNT / _BSENSE
+    char      name[16];       // copied from config; becomes MQTT topic segment
+    uint32_t  lastUpdateMs;   // millis() of last successful parse (0 = never)
+    union {
+        SolarDisplayData        solar;
+        ShuntDisplayData        shunt;
+        BatterySenseDisplayData bsense;
+    } data;
+};
+
+// Global per-slot state array, indexed by config slot (0..MAX_DEVICES-1).
+extern DeviceRuntimeState devStates[MAX_DEVICES];
 extern volatile bool bleNewData;
 
 // Functions
 void bleInit(const GatewayConfig& cfg);
 void bleScan();
-int bleDeviceCount();
+int  bleDeviceCount();                            // count of inUse / enabled slots
+int  bleEnabledSlots(int* outSlots, int maxOut);  // fills outSlots with inUse slot
+                                                  // indices, returns the count
 
 #endif
