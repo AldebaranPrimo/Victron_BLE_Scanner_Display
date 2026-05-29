@@ -173,9 +173,9 @@ bool configSave(const GatewayConfig& cfg) {
 }
 
 bool configIsValid(const GatewayConfig& cfg) {
-    if (strlen(cfg.wifiSsid) == 0) return false;
-    if (strlen(cfg.mqttBroker) == 0) return false;
-
+    // WiFi/MQTT are OPTIONAL — with no broker the gateway runs display-only.
+    // The only hard requirement to operate is at least one enabled device with
+    // valid keys, so there is something to scan, decrypt and show on screen.
     bool anyDevice = false;
     for (int i = 0; i < MAX_DEVICES; i++) {
         if (cfg.devices[i].enabled) {

@@ -20,8 +20,9 @@ void displayBootMessage(const char* line1, const char* line2);
 void displayConfigMode(const char* ssid, const char* ip);
 
 // Renders the given page (0 = summary, 1..N = per-device detail). The page index
-// is mapped to a device slot via bleEnabledSlots().
-void displayNormalUpdate(bool wifiOk, bool mqttOk, int page);
+// is mapped to a device slot via bleEnabledSlots(). `online` is false in
+// display-only mode (no MQTT) → the status dot shows a neutral colour.
+void displayNormalUpdate(bool online, bool wifiOk, bool mqttOk, int page);
 
 // Button A cycles `displayPage` over `pageCount`; Button B toggles rotation.
 void displayHandleButtons(int& displayPage, int& displayRotation, int pageCount);

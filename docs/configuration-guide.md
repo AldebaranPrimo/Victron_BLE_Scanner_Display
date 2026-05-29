@@ -1,5 +1,9 @@
 # Configuration Guide
 
+> **🧪 BETA branch (`feature/multi-device-mppt`, firmware v2.0.0).** Largely
+> untested, functionality not guaranteed — read the README before relying on it.
+> WiFi and MQTT are **optional**: with no broker the gateway runs display-only.
+
 ## First-Time Setup
 
 1. **Flash the firmware** to your M5StickC Plus via USB-C (`pio run -e m5stick-c-plus -t upload`)

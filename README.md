@@ -2,10 +2,18 @@
 
 ESP32-based gateway that reads BLE advertisements from Victron Energy devices and publishes data via MQTT. Primary board: **M5StickC Plus** (135×240). The original M5StickC still builds.
 
-> **⚠️ Testing branch `feature/multi-device-mppt` — firmware v2.0.0.**
-> Multi-device refactor: monitor several Victron devices of the same type
-> (e.g. multiple SmartSolar MPPTs), each on its own `victron/<name>/state` topic.
-> Validated on real hardware (M5StickC Plus) but **not a tagged release** — see
+> # 🧪 BETA — branch `feature/multi-device-mppt` (firmware v2.0.0)
+> **This branch is beta and largely untested. Functionality is NOT guaranteed —
+> use it at your own risk for evaluation only.**
+> It builds and boots on the M5StickC Plus, but multi-device operation in the
+> field, display-only mode, and the on-screen pages have **not been validated
+> with real data yet** (new-UI screenshots pending). The stable, single-device
+> firmware lives on the default branch (`main`) and is the progenitor of this work.
+>
+> What this branch adds: monitor several Victron devices of the same type
+> (e.g. multiple SmartSolar MPPTs), each on its own `victron/<name>/state` topic;
+> runtime device config via a web portal (no hard-coded keys); optional MQTT
+> (works display-only without any network). See
 > [Running alongside an existing gateway](#running-alongside-an-existing-gateway),
 > [Build & Flash Notes](docs/build-and-flash.md), and
 > [Known limitations](#known-limitations-testing-branch) before using it.
@@ -24,6 +32,9 @@ ESP32-based gateway that reads BLE advertisements from Victron Energy devices an
 - **MQTT publishing** with JSON payloads, compatible with Home Assistant and Node-RED
 - **Web-based configuration portal** (no need to recompile for WiFi/MQTT/device changes)
 - **Paged multi-device display**: a summary page plus one detail page per device
+- **Display-only mode**: WiFi and MQTT are optional — configure at least one
+  Victron device and the gateway works as a standalone display (BLE scan + screen,
+  no network needed). Add WiFi + an MQTT broker to also publish to Home Assistant.
 
 ## Hardware
 
@@ -47,9 +58,10 @@ display code is resolution-independent.
 Requires [PlatformIO](https://platformio.org/).
 
 ```bash
-# Clone
-git clone https://github.com/AldebaranPrimo/Victron_BLE_Gateway.git
-cd Victron_BLE_Gateway
+# Clone and switch to the beta branch
+git clone https://github.com/AldebaranPrimo/Victron_BLE_Scanner_Display.git
+cd Victron_BLE_Scanner_Display
+git checkout feature/multi-device-mppt   # the v2.0.0 multi-device beta
 
 # Build for M5StickC Plus (primary / default env)
 pio run -e m5stick-c-plus
@@ -79,6 +91,11 @@ On first boot, the device automatically enters **Setup Mode**:
 4. Click **Save** - the device reboots and starts operating
 
 To re-enter setup mode later, hold **Button B** (side) for 3 seconds during boot.
+
+> **Display-only (no network):** WiFi and MQTT fields are optional. If you leave
+> the MQTT broker empty, the gateway skips networking entirely and runs as a
+> standalone Victron display — it only needs at least one configured device. Fill
+> in WiFi + broker to also publish over MQTT.
 
 ### 3. Get Victron Device Keys
 

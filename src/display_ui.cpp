@@ -55,9 +55,13 @@ static bool slotFresh(const DeviceRuntimeState& s) {
 }
 
 // Connection-status dot, top-right corner. Resolution-independent.
-static void drawStatusDot(bool wifiOk, bool mqttOk) {
+static void drawStatusDot(bool online, bool wifiOk, bool mqttOk) {
     int W = lcd.width();
-    uint16_t c = (wifiOk && mqttOk) ? C_CHARGE : (wifiOk ? C_LOAD : C_DRAIN);
+    // Display-only (no MQTT configured) → dim/neutral dot: offline by design,
+    // not an error. Online → green = all ok, yellow = WiFi only, red = down.
+    uint16_t c = !online           ? C_DIM
+               : (wifiOk && mqttOk) ? C_CHARGE
+               : (wifiOk            ? C_LOAD : C_DRAIN);
     lcd.fillCircle(W - 8, 8, 4, c);
 }
 
@@ -275,12 +279,12 @@ void displayConfigMode(const char* ssid, const char* ip) {
     lcd.printf("FW:   v%s\n", FW_VERSION);
 }
 
-void displayNormalUpdate(bool wifiOk, bool mqttOk, int page) {
+void displayNormalUpdate(bool online, bool wifiOk, bool mqttOk, int page) {
     int slots[MAX_DEVICES];
     int n = bleEnabledSlots(slots, MAX_DEVICES);
 
     lcd.fillScreen(C_BG);
-    drawStatusDot(wifiOk, mqttOk);
+    drawStatusDot(online, wifiOk, mqttOk);
 
     if (page <= 0 || n == 0) {
         // Summary page (also the fallback when there are no devices).
@@ -326,6 +330,6 @@ void displayHandleButtons(int& displayPage, int& displayRotation, int pageCount)
 void displayInit() {}
 void displayBootMessage(const char*, const char*) {}
 void displayConfigMode(const char*, const char*) {}
-void displayNormalUpdate(bool, bool, int) {}
+void displayNormalUpdate(bool, bool, bool, int) {}
 void displayHandleButtons(int&, int&, int) {}
 #endif

@@ -1,5 +1,8 @@
 # Architecture
 
+> **🧪 BETA branch (`feature/multi-device-mppt`, firmware v2.0.0).** Largely
+> untested, functionality not guaranteed — read the README before relying on it.
+
 ## Overview
 
 The firmware runs on an **M5StickC Plus** (ESP32-PICO-D4, 520KB SRAM, no PSRAM; 135x240 ST7789v2 display) and operates in two mutually exclusive modes. The base M5StickC (80x160) is still buildable as a legacy target.

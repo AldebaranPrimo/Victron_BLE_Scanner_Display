@@ -17,6 +17,7 @@
 
 static GatewayConfig config;
 static bool configMode = false;
+static bool mqttEnabled = false; // false = display-only (no WiFi/MQTT brought up)
 static unsigned long lastPublish = 0;
 static unsigned long bootTime = 0;
 static int displayPage = 0;
@@ -101,24 +102,31 @@ void setup() {
         configMode = false;
         bootTime = millis();
 
-        Serial.println("[MODE] Normal operation");
-        Serial.printf("[CFG] WiFi: %s\n", config.wifiSsid);
-        Serial.printf("[CFG] MQTT: %s:%d\n", config.mqttBroker, config.mqttPort);
-        Serial.printf("[CFG] Publish interval: %ds\n", config.mqttPublishInterval);
+        // MQTT (and therefore WiFi) is OPTIONAL. With no broker configured the
+        // gateway runs display-only: it still scans BLE and updates the screen,
+        // it just doesn't publish — usable as a standalone Victron display with
+        // no network setup. WiFi is only brought up in order to serve MQTT.
+        mqttEnabled = (strlen(config.mqttBroker) > 0 && strlen(config.wifiSsid) > 0);
 
-        // Init BLE with loaded config
+        // Init BLE with loaded config (needed in every mode)
         bleInit(config);
 
-        // Connect WiFi
-        displayBootMessage("WiFi...", config.wifiSsid);
-        wifiConnect(config.wifiSsid, config.wifiPass);
+        if (mqttEnabled) {
+            Serial.println("[MODE] Normal operation (online)");
+            Serial.printf("[CFG] WiFi: %s\n", config.wifiSsid);
+            Serial.printf("[CFG] MQTT: %s:%d\n", config.mqttBroker, config.mqttPort);
+            Serial.printf("[CFG] Publish interval: %ds\n", config.mqttPublishInterval);
 
-        // Setup MQTT
-        mqttSetup(config.mqttBroker, config.mqttPort,
-                  config.mqttUser, config.mqttPass, config.mqttBaseTopic);
+            displayBootMessage("WiFi...", config.wifiSsid);
+            wifiConnect(config.wifiSsid, config.wifiPass);
 
-        if (wifiIsConnected()) {
-            mqttConnect();
+            mqttSetup(config.mqttBroker, config.mqttPort,
+                      config.mqttUser, config.mqttPass, config.mqttBaseTopic);
+            if (wifiIsConnected()) {
+                mqttConnect();
+            }
+        } else {
+            Serial.println("[MODE] Normal operation (display-only, no MQTT)");
         }
 
         Serial.printf("[HEAP] Free: %d bytes\n", ESP.getFreeHeap());
@@ -144,13 +152,13 @@ void loop() {
     // BLE scan (blocking for ~1 second)
     bleScan();
 
-    // WiFi reconnect
-    wifiReconnectIfNeeded();
-
-    // MQTT reconnect and loop
-    if (wifiIsConnected()) {
-        mqttReconnectIfNeeded();
-        mqttLoop();
+    // Networking is skipped entirely in display-only mode.
+    if (mqttEnabled) {
+        wifiReconnectIfNeeded();
+        if (wifiIsConnected()) {
+            mqttReconnectIfNeeded();
+            mqttLoop();
+        }
     }
 
     // Publish at configured interval
@@ -176,7 +184,7 @@ void loop() {
     if (bleNewData || displayPage != lastPage) {
         bleNewData = false;
         lastPage = displayPage;
-        displayNormalUpdate(wifiIsConnected(), mqttIsConnected(), displayPage);
+        displayNormalUpdate(mqttEnabled, wifiIsConnected(), mqttIsConnected(), displayPage);
     }
 
     // Handle buttons (Button A cycles pages over pageCount; B toggles rotation)

@@ -1,5 +1,8 @@
 # MQTT Topics and Payloads
 
+> **🧪 BETA branch (`feature/multi-device-mppt`, firmware v2.0.0).** Largely
+> untested, functionality not guaranteed — read the README before relying on it.
+
 ## Topic Structure
 
 All topics are published under a configurable base topic (default: `victron`).
