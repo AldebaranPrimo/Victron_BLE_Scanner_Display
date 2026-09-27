@@ -1,7 +1,7 @@
 # AI Execution Contract — ESP32 firmware with PlatformIO
 
-> **Data ultimo aggiornamento**: 2026-09-27 (rev 4 — trimmed: drawer templates and rules left to the skills that emit them, per-repo required sections moved to the `master-sync` skill, revision history left to the registry; drawer files through the skill `nuovo-file-cassetto`, completion gate and two-axis self-review through `chiusura-slice`. Gradual adherence for existing repos. History: `_master-contracts/STATO-CONTRATTI.md` §7, `CHANGELOG.md`.)
-> **Data ultima sincronizzazione**: 2026-09-27 (sync2, propagazione generale; snapshot `storico/2026-09-27-sync2/`).
+> **Data ultimo aggiornamento**: 2026-09-27 (rev 4 — trimmed: drawer templates and rules left to the skills that emit them, per-repo required sections moved to the `master-sync` skill, revision history left to the registry; drawer files through the skill `nuovo-file-cassetto`, completion gate and two-axis self-review through `chiusura-slice`. Gradual adherence for existing repos; documentation map allowed in `docs/README.md`. History: `_master-contracts/STATO-CONTRATTI.md` §7, `CHANGELOG.md`.)
+> **Data ultima sincronizzazione**: 2026-09-27 (sync2 e mappa della documentazione; snapshot `storico/2026-09-27-sync2/`, `storico/2026-09-27-direct-mappa-documentazione/`).
 >
 > Family created 2026-09-23 (workflow §9.2) from the five `Tomita\` firmware repos, which are its consumers: `TomitaHome_eInk_Display` (pilot), `Victron_BLE_Scanner_eInk_Display`, `Tomita_Camper_LCD_Touch_bringup`, `TomitaHome_LCD_Display`, `Victron_BLE_Gateway`. Every invariant below comes from a bug or a lesson recorded in those repos' `CLAUDE.md`, `platformio.ini` or runbooks. Conduct rules live in the user-global file and are not repeated here.
 
@@ -100,7 +100,7 @@ When a file is born: a decision in the turn it is taken (a display layout chosen
 
 Issue tracker, when a platform CLI is authenticated (`az repos` on Azure DevOps, `gh` on GitHub): one drawer file = one work item or issue, mandatory for requests and incidents, optional for tech debt and decisions; cross-links both ways. Without a CLI, file-only.
 
-Legacy documentation present at the adoption date stays where it is (`ROADMAP.md`, `PROJECT_STATUS.md`, `docs/mockups/`), listed in the per-repo. No empty skeleton folders, no hand-kept index README except `docs/reviews/README.md`, no nested drawers, no more than two levels under `docs/`.
+Legacy documentation present at the adoption date stays where it is (`ROADMAP.md`, `PROJECT_STATUS.md`, `docs/mockups/`), listed in the per-repo. No empty skeleton folders, no hand-kept index README except `docs/reviews/README.md` and the documentation map `docs/README.md` (projects with user-facing documentation: table *Mappa della documentazione* with document, audience, update trigger, notes and sealed files, read by `chiusura-slice`), no nested drawers, no more than two levels under `docs/`.
 
 Reviews by an external AI (Codex, thread rules in the skill `nuovo-file-cassetto`): the SessionStart briefing lists the open ones, read and answer them before other work; Claude fills Risposta in place, moves `stato` to `risposta`, fixes only inside the slice's file scope and updates `docs/reviews/README.md`; only the user closes.
 
