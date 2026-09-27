@@ -20,7 +20,13 @@ Attenzione allo stato dei branch: `main` è il firmware stabile mono-dispositivo
 ## 2. Allineamento col contratto di famiglia
 
 - **Famiglia**: `firmware-esp32-platformio`, copia locale [`CLAUDE-firmware-esp32-platformio.md`](CLAUDE-firmware-esp32-platformio.md).
-- **Data ultima sincronizzazione**: 2026-09-23 (aggancio §9.1 alla nascita della famiglia).
+- **Data ultima sincronizzazione**: 2026-09-27 (propagazione generale; aggancio §9.1 il 2026-09-23).
+- **Classificazione delle invarianti**: valgono così come sono, tranne P-02 e P-05 (oggetto riformulato:
+  ESP32-PICO senza PSRAM né USB nativo; al posto di `qio_opi` e dei flag CDC valgono il board `m5stick-c` con
+  `partitions_noota.csv` e il solo `CORE_DEBUG_LEVEL`), P-06 (oggetto riformulato: niente task FreeRTOS, vale
+  per `loop()` e il callback Bluedroid `onResult`), P-07 (senza oggetto: display SPI), P-04, P-09 e P-12
+  (condizionali: patch di libreria, codice che tocca l'AXP192 o soglie di batteria, comportamenti legati
+  all'orario).
 
 ## 3. Board e toolchain
 
@@ -33,9 +39,10 @@ Attenzione allo stato dei branch: `main` è il firmware stabile mono-dispositivo
 
 ## 4. Runtime, dati, segreti
 
-- Configurazione WiFi/MQTT tramite **portale di configurazione** (`config_portal`, `config_manager`) salvata in
-  NVS: nessuna credenziale nel sorgente. Chiavi AES e MAC dei dispositivi Victron: verificare alla prima sessione
-  che stiano solo in NVS/portale e non in header committati (P-03; repo pubblico).
+- Configurazione WiFi/MQTT e dispositivi tramite **portale di configurazione** (`config_portal`,
+  `config_manager`) salvata in NVS: sul branch `feature/multi-device-mppt` nessuna credenziale nel sorgente.
+- **Segreti (P-03) — override deciso da Marco, non si ripropone**: la storia pubblica (`main`, `src/main.cpp`)
+  contiene MAC e chiavi AES di tre dispositivi Victron (verificato il 2026-09-27); restano così.
 - MQTT: topic e schema nel README; da promuovere a `docs/DATA_CONTRACT.md` al primo cambiamento (P-08).
 - Recovery: `esptool erase_flash` + riflash; `backups/` da creare al primo flash `risk:high` (P-10).
 
@@ -46,12 +53,19 @@ push dell'AI a fine slice, PR verso `main` solo quando la beta è validata sul c
 
 ## 6. Eccezioni e do-not
 
-- Eccezioni al contratto: nessuna.
+- Eccezioni al contratto: l'override sui segreti (§4) e la classificazione (§2).
+- **Adeguamenti in corso** (aderenza graduale: voci in `docs/tech-debt.md`, il codice cambia solo in una slice
+  chiesta da Marco): P-01 versioni con caret non fissate (TD-001), P-05 `CORE_DEBUG_LEVEL` non impostato
+  (TD-002), P-08 JSON MQTT composto a mano (TD-003), P-10 `backups/` da creare al primo flash `risk:high`
+  (TD-004).
 - Do-not: non mergiare la beta in `main` senza validazione con dati reali; non pubblicare nulla che contenga
   MAC o chiavi (repo pubblico).
 
 ## 7. Documentazione, tracker, skill
 
-- Cassetti e `docs/tech-debt.md`: da creare al primo evento. Legacy alla data di adozione (2026-09-23): `README.md`.
+- Cassetti: `docs/tech-debt.md` dal 2026-09-27, gli altri al primo evento. Legacy alla data di adozione
+  (2026-09-23): `README.md`.
 - Issue tracker: GitHub `AldebaranPrimo`, issue del repo; categoria `personal`.
-- Stato fra sessioni: `HANDOFF.md` da creare con Marco alla prima chiusura di sessione. Kit `.claude/` non installato.
+- Skill: kit del master in `.claude/skills/` (`nuovo-file-cassetto`, `chiusura-slice`, `verify`,
+  `session-close`) più le globali `recupera-memoria` / `salva-memoria`.
+- Stato fra sessioni: `HANDOFF.md` da creare con Marco alla prima chiusura di sessione.
