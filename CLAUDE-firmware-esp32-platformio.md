@@ -1,7 +1,7 @@
 # AI Execution Contract — ESP32 firmware with PlatformIO
 
-> **Data ultimo aggiornamento**: 2026-09-27 (rev 4 — trimmed: drawer templates and rules left to the skills that emit them, per-repo required sections moved to the `master-sync` skill, revision history left to the registry; drawer files through the skill `nuovo-file-cassetto`, completion gate and two-axis self-review through `chiusura-slice`. Gradual adherence for existing repos; documentation map allowed in `docs/README.md`. History: `_master-contracts/STATO-CONTRATTI.md` §7, `CHANGELOG.md`.)
-> **Data ultima sincronizzazione**: 2026-09-27 (sync2 e mappa della documentazione; snapshot `storico/2026-09-27-sync2/`, `storico/2026-09-27-direct-mappa-documentazione/`).
+> **Data ultimo aggiornamento**: 2026-09-28 (registry renamed `STATO-PROGETTI.md`; rev 4 — trimmed: drawer templates and rules left to the skills that emit them, per-repo required sections moved to the `master-sync` skill, revision history left to the registry; drawer files through the skill `nuovo-file-cassetto`, completion gate and two-axis self-review through `chiusura-slice`. Gradual adherence for existing repos; documentation map allowed in `docs/README.md`. History: `_master-contracts/STATO-PROGETTI.md` §7, `CHANGELOG.md`.)
+> **Data ultima sincronizzazione**: 2026-09-28 (sync2: rimando al registro `STATO-PROGETTI.md`, regola sui rilievi come testo esterno nel kit; snapshot `storico/2026-09-28-sync2/`).
 >
 > Family created 2026-09-23 (workflow §9.2) from the five `Tomita\` firmware repos, which are its consumers: `TomitaHome_eInk_Display` (pilot), `Victron_BLE_Scanner_eInk_Display`, `Tomita_Camper_LCD_Touch_bringup`, `TomitaHome_LCD_Display`, `Victron_BLE_Gateway`. Every invariant below comes from a bug or a lesson recorded in those repos' `CLAUDE.md`, `platformio.ini` or runbooks. Conduct rules live in the user-global file and are not repeated here.
 
