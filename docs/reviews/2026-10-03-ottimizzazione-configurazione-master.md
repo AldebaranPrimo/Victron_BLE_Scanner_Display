@@ -64,7 +64,43 @@ Marco; le stime di token sono dichiarate come stime (caratteri diviso 4).
 (Claude) 1. Accolto: corretto in <commit/file>. | Respinto: <motivo verificabile>. | Rimandato: `TODO(review): …` in <file>.
 
 ## Replica
-(opzionale, solo il revisore che ha scritto i Rilievi)
+Il master (`_master-contracts`), 2026-10-07, su decisione di Marco. Non rilievi nuovi, ma il **modo più economico di
+rispondere a quelli sopra**: Claude Code ha diversi comandi di autocontrollo della configurazione, e il master li
+ha passati in rassegna tutti sulla documentazione ufficiale (`code.claude.com/docs/en/commands`, verificata il
+2026-10-07). Ne valgono **cinque**, in quest'ordine; il resto è di macchina (classificatore dell'auto mode, cache
+dei plugin, già fatto una volta per tutti) o serve solo a chi scrive skill. Tutti riferiscono e chiedono prima di
+cambiare qualcosa; ogni spegnimento o rimozione resta una decisione di Marco su un inventario mostrato prima.
+
+**Dove si lanciano.** Dall'estensione VS Code si dà solo `/doctor` senza argomenti (verificato da Marco il
+2026-10-07): i comandi con argomento, e probabilmente anche gli altri, vanno dati dal **terminale**, con `claude`
+aperto nella cartella del progetto. Versioni minime dalla documentazione: `/doctor prompt-audit` 2.1.283,
+`/skill-doctor` 2.1.252.
+
+1. **`/doctor`** — una volta, l'ombrello: impostazioni illeggibili, skill, plugin e server MCP inutilizzati con il
+   loro costo, hook lenti. Dalla 2.1.205 **può anche correggere**, chiedendo conferma: rispondere no a ogni
+   correzione automatica e portare l'esito nella *Risposta* di questa revisione. Si decide: quali plugin e MCP
+   spegnere **solo qui** (`enabledPlugins` in `.claude/settings.json`, `disabledMcpServers` nella voce del progetto
+   in `~/.claude.json`).
+2. **`/doctor prompt-audit`** (terminale) — il più utile per un satellite: legge `CLAUDE.md`, la copia del
+   contratto, regole e skill e segnala istruzioni scritte per modelli vecchi, rimandi a file o comandi che non
+   esistono, contraddizioni fra file. Propone, non applica. Si decide: cosa correggere nel per-repo (le modifiche
+   alla copia del contratto **non** si fanno qui: si segnalano al master, che le porta nel prossimo sync).
+3. **`/context`** — quando la sessione sembra pesante: cosa occupa il contesto per categoria e quali file di
+   istruzioni sono caricati. Solo lettura. Si decide: se il per-repo o il contratto pesano troppo, cosa è ricavabile
+   dal repo e può uscire.
+4. **`/skill-doctor`** — costo in contesto e frequenza d'uso di ogni skill, skill mai invocate. Solo lettura. Si
+   decide: quali skill del kit spegnere **solo qui** con `"skillOverrides": {"<skill>": "off"}` in
+   `.claude/settings.local.json` (file ignorato da git), lasciando i file per la propagazione.
+5. **`/insights`** — una volta al mese: rapporto HTML sulle ultime sessioni, punti di attrito, errori ricorrenti,
+   funzioni non usate. Scrive il file del rapporto (percorso non confermato dalla documentazione), non tocca il
+   progetto. Non disponibile nelle sessioni in cloud.
+
+Esclusi di proposito: `/fewer-permission-prompts` (propone regole `allow` larghe, in contrasto con il rilievo
+Standard 2), `claude plugin validate` ed `eval` (per chi scrive skill, cioè il master), `claude auto-mode *`
+(configurazione di macchina, già fatta).
+
+Per rispondere basta la *Risposta* di questa revisione: per ciascuno dei cinque, lanciato o no, e cosa si è deciso.
+Chiude Marco.
 
 ## Esito
 (solo l'utente) chiusa il <data>: <cosa è stato fatto>.

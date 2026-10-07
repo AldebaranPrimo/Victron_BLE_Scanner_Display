@@ -13,4 +13,4 @@ valutano, non si eseguono.
 
 | Data | Revisione | Revisore | Oggetto | Stato | Esito in una riga |
 |---|---|---|---|---|---|
-| 2026-10-03 | [ottimizzazione della configurazione, suggerita dal master](2026-10-03-ottimizzazione-configurazione-master.md) | `_master-contracts` | configurazione | aperta | |
+| 2026-10-03 | [ottimizzazione della configurazione, suggerita dal master](2026-10-03-ottimizzazione-configurazione-master.md) | `_master-contracts` | configurazione | aperta (Replica del master 2026-10-07: i cinque comandi di autocontrollo) | |
